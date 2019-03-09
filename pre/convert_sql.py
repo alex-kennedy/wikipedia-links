@@ -1,10 +1,56 @@
+import gzip
 import os
 import re
+import shutil
+import subprocess
 
-import pandas as pd
+import requests
+import yaml
 from tqdm import tqdm
 
 tqdm.monitor_interval = 0
+
+def load_config(config_path):
+    """Loads YAML config"""
+    with open(config_path) as f:
+        return yaml.load(f)
+
+
+def download_table(config, table, force=False):
+    """
+    Download and unzip compressed SQL dump
+
+    Args:
+        config (dict): project config dictionary
+        table (str): name of wiki table
+        force (bool): overwrite file if it already exists
+    """
+    folder = os.path.join(config['data_root'], table)
+    file_name = '-'.join(['enwiki', str(config['data_date']), table + '.sql.gz'])
+    file_path = os.path.join(folder, file_name)
+    
+    url = os.path.join(config['data_remote'], config['data_date'], file_name)
+    
+    # Make data folder
+    if not os.path.isdir(folder):
+        os.mkdir(folder)
+
+    # If unzipped file exists, exits, unless force=True
+    if not force and os.path.exists(file_path[:-3]):
+        print('Unzipped table ({}) exists'.format(table))
+        return
+
+    # Downloads file
+    if not os.path.exists(file_path):
+        subprocess.call(['wget', '-O', file_path, url])
+
+    # Unzips file
+    print('Unzipping {}...'.format(table))
+    with gzip.open(file_path, 'rb') as f_in:
+        with open(file_path[:-3], 'wb') as f_out:
+            shutil.copyfileobj(f_in, f_out)
+    print('Unzipped!')
+
 
 def sql_dump_to_csv(in_file, out_file):
     """
@@ -32,8 +78,38 @@ def sql_dump_to_csv(in_file, out_file):
             # Write values in the line to CSV
             match = pattern.findall(line)
             csv_line = b'\n'.join(match) + b'\n'
-            out.write(csv_line)            
+            out.write(csv_line)
+
+
+def table_to_csv(config, table, force=False):
+    """
+    Convert a wiki SQL table to a CSV
+    
+    Args:
+        config (dict): project config dictionary
+        table (str): table name to convert
+        force (bool): overwrite CSV if it is already present
+    
+    Raises:
+        FileNotFoundError: if SQL file does not exist
+    """
+    sql_file_name = '-'.join(['enwiki', str(config['data_date']), table + '.sql'])
+    path_in = os.path.join(config['data_root'], table, sql_file_name)
+    path_out = os.path.join(config['data_root'], table, config['tables'][table]['out_csv'])
+
+    if not os.path.exists(path_in):
+        raise FileNotFoundError('SQL file for table ({}) is not present.'.format(table))
+
+    if not force and os.path.exists(path_out):
+        print('Table ({}) already converted to CSV'.format(table))
+        return 
+
+    print('Unpacking table: {}'.format(table))
+    sql_dump_to_csv(path_in, path_out)
 
 
 if __name__ == '__main__':
-    sql_dump_to_csv('/mnt/f/wikipedia-links/extracted/enwiki-20190301-pagelinks.sql', '/mnt/f/wikipedia-links/extracted/out.txt')
+    config = load_config('config/pi.yaml')
+    for table in config['tables'].keys():
+        download_table(config, table)
+        table_to_csv(config, table)

@@ -1,0 +1,15 @@
+# Configuration for Raspberry Pi
+data_root: /mnt/hdd/wikipedia-links
+data_remote: https://dumps.wikimedia.org/enwiki/
+data_date: '20190301'
+
+# Tables to download and unzip from remote
+tables:
+  pagelinks:
+    out_csv: pagelinks.csv
+
+  page:
+    out_csv: page.csv
+
+  redirect:
+    out_csv: redirect.csv
