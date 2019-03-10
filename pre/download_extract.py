@@ -5,18 +5,13 @@ import shutil
 import subprocess
 
 import requests
-import yaml
 from tqdm import tqdm
+
+from utils import load_config
 
 tqdm.monitor_interval = 0
 
-def load_config(config_path):
-    """Loads YAML config"""
-    with open(config_path) as f:
-        return yaml.load(f)
-
-
-def download_table(config, table, force=False):
+def download_and_decompress(config, table, force=False):
     """
     Download and unzip compressed SQL dump
 
@@ -81,24 +76,24 @@ def sql_dump_to_csv(in_file, out_file):
             out.write(csv_line)
 
 
-def table_to_csv(config, table, force=False):
+def download_table_to_csv(config, table, force=False):
     """
-    Convert a wiki SQL table to a CSV
+    Convert a wiki SQL table to a CSV.
+
+    The the decompressed SQL file does not exist, download_and_decompress is 
+    called. 
     
     Args:
         config (dict): project config dictionary
         table (str): table name to convert
         force (bool): overwrite CSV if it is already present
-    
-    Raises:
-        FileNotFoundError: if SQL file does not exist
     """
     sql_file_name = '-'.join(['enwiki', str(config['data_date']), table + '.sql'])
     path_in = os.path.join(config['data_root'], table, sql_file_name)
     path_out = os.path.join(config['data_root'], table, config['tables'][table]['out_csv'])
 
     if not os.path.exists(path_in):
-        raise FileNotFoundError('SQL file for table ({}) is not present.'.format(table))
+        download_and_decompress(config, table)
 
     if not force and os.path.exists(path_out):
         print('Table ({}) already converted to CSV'.format(table))
@@ -111,5 +106,4 @@ def table_to_csv(config, table, force=False):
 if __name__ == '__main__':
     config = load_config('config/pi.yaml')
     for table in config['tables'].keys():
-        download_table(config, table)
-        table_to_csv(config, table)
+        download_table_to_csv(config, table)

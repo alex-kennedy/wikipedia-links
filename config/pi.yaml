@@ -5,11 +5,48 @@ data_date: '20190301'
 
 # Tables to download and unzip from remote
 tables:
+  # https://www.mediawiki.org/wiki/Manual:Pagelinks_table
   pagelinks:
     out_csv: pagelinks.csv
+    names:
+      - pl_from
+      - pl_from_namespace
+      - pl_namespace
+      - pl_title
 
+  # https://www.mediawiki.org/wiki/Manual:Page_table
   page:
     out_csv: page.csv
+    names:
+      - page_id
+      - page_namespace
+      - page_title
+      - page_restrictions
+      - page_is_redirect
+      - page_is_new
+      - page_random
+      - page_touched
+      - page_links_updated
+      - page_latest
+      - page_len
+      - page_content_model
+      - page_lang
 
+  # https://www.mediawiki.org/wiki/Manual:Redirect_table
   redirect:
     out_csv: redirect.csv
+    names:
+      - rd_from
+      - rd_namespace
+      - rd_title
+      - rd_interwiki
+      - rd_fragment
+
+# Files generated during processing
+generated_files:
+  # Subset of page table where page_is_redirect == True
+  page_redirect_true: page_redirect_true.csv 
+  
+  # Dictionaries of page title to IDs
+  titles_map:
+    max_part: 0xf
