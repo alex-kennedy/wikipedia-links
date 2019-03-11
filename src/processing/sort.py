@@ -1,6 +1,7 @@
 import heapq
 import os
-from itertools import islice
+from contextlib import ExitStack
+from itertools import islice, zip_longest
 
 
 def chunks_of_file(fp, n_bytes):
@@ -19,7 +20,22 @@ def grouper(iterable, n):
         x = list(islice(it, n))
 
 
-def k_way_merge(files, out_file, n=1000):
+def k_way_merge(files, out_file, n=50000):
+    with ExitStack() as stack, open(out_file, 'w') as out:
+        fps = [stack.enter_context(open(fp) for fp in files)]
+        chunks = [chunks_of_file(fp, n) for fp in fps]
+
+        while True:
+            q = heapq.merge(next(c, []) for c in chunks)
+            
+            item = next(q, None)
+            if not item:
+                return
+
+            out.write(item)
+            for item in q:
+                out.write(item)
+
     pointers = [open(f) for f in files]
     q = heapq.merge(*pointers)
 
@@ -27,8 +43,7 @@ def k_way_merge(files, out_file, n=1000):
         for group in grouper(q, 100):
             out.writelines(group)
 
-    [fp.close() for fp in pointers]
-    [os.remove(f) for f in files]
+    # [os.remove(f) for f in files]
     
 
 def sort_chunks(fp, temp, n_bytes):
