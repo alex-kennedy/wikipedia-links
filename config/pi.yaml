@@ -5,6 +5,7 @@ data_date: '20190301'
 
 # Available memory (log base 2)
 free_memory: 29  # 2**29 is 512MB
+temp_dir: '/home/pi/wikipedia-links'
 
 # Tables to download and unzip from remote
 tables:
@@ -49,4 +50,6 @@ tables:
 gen:
   page_unsorted: 'gen/page_unsorted.csv'
   page_redirects_unsorted: 'gen/page_redirects_unsorted.csv'
+  page: 'gen/page.csv'
+  page_redirects: 'gen/page_redirects.csv'
 

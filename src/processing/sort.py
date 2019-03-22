@@ -116,11 +116,13 @@ def external_sort(in_file, out_file, n_bytes=2**25, k=10, temp_dir=None):
         # Sort into chunks
         chunks_dir = os.path.join(temp, str(pass_num))
         
+        print('Sorting Chunks...')
         os.mkdir(chunks_dir)
         sort_chunks(in_file, chunks_dir, n_bytes=n_bytes)
 
         while True:
             pass_num += 1
+            print('Pass number {}...'.format(pass_num))
 
             files_to_merge = glob(os.path.join(temp, str(pass_num - 1), '*'))
             if len(files_to_merge) <= k:
@@ -130,7 +132,7 @@ def external_sort(in_file, out_file, n_bytes=2**25, k=10, temp_dir=None):
             merge_to = os.path.join(temp, str(pass_num))
             os.mkdir(merge_to)
 
-            for i, k_files in enumerate(grouper(files_to_merge, k)):
+            for i, k_files in tqdm(enumerate(grouper(files_to_merge, k))):
                 k_way_merge(k_files, os.path.join(merge_to, str(i)), n=int(n_bytes/k))
                 [os.remove(f) for f in k_files]
 
