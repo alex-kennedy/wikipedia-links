@@ -62,6 +62,7 @@ def sql_dump_to_csv(in_file, out_file):
     # Returns all groups inside round brackets
     pattern = re.compile(b'[(](.*?)[)]')
 
+    # This is done line by line because each line is ~1MB
     with open(in_file, 'rb') as f, open(out_file, 'wb') as out:
         for line in f:
             progress.update(len(line))
