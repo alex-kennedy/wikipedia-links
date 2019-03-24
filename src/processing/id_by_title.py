@@ -1,12 +1,19 @@
 import os
 
 import pandas as pd
+import yaml
 from tqdm import tqdm
 
 import utils
 from sort import external_sort
 
 # file to create the title -> id lookup table. i.e. the title then id columns of the page table, sorted by title
+
+
+def load_config(config_path):
+    """Loads YAML config"""
+    with open(config_path) as f:
+        return yaml.load(f)
 
 
 def extract_page_columns(config):
@@ -36,16 +43,17 @@ def extract_page_columns(config):
 
 def sort_on_title(config):
     root = config['data_root']
+    n_bytes = 2 ** config['free_memory']
 
     # Sort the page file
     unsorted = os.path.join(root, config['gen']['page_unsorted'])
     out = os.path.join(root, config['gen']['page'])
-    external_sort(unsorted, out, config['free_memory'], temp_dir=config['temp_dir'])
+    external_sort(unsorted, out, n_bytes=n_bytes, temp_dir=config['temp_dir'])
 
     # Sort the redirects file
     unsorted = os.path.join(root, config['gen']['page_redirects_unsorted'])
     out = os.path.join(root, config['gen']['page_redirects'])
-    external_sort(unsorted, out, config['free_memory'], temp_dir=config['temp_dir'])
+    external_sort(unsorted, out, n_bytes=n_bytes, temp_dir=config['temp_dir'])
 
 
 def resolve_redirects(config):
@@ -60,3 +68,4 @@ def resolve_redirects(config):
 if __name__ == '__main__':
     config = utils.load_config('config/pi.yaml')
     # extract_page_columns(config)
+    sort_on_title(config)

@@ -11,7 +11,6 @@ temp_dir: '/home/pi/wikipedia-links'
 tables:
   # https://www.mediawiki.org/wiki/Manual:Pagelinks_table
   pagelinks:
-    out_csv: pagelinks.csv
     names:
       - pl_from
       - pl_from_namespace
@@ -20,7 +19,6 @@ tables:
 
   # https://www.mediawiki.org/wiki/Manual:Page_table
   page:
-    out_csv: page.csv
     names:
       - page_id
       - page_namespace
@@ -38,7 +36,6 @@ tables:
 
   # https://www.mediawiki.org/wiki/Manual:Redirect_table
   redirect:
-    out_csv: redirect.csv
     names:
       - rd_from
       - rd_namespace
