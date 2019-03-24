@@ -4,7 +4,7 @@ data_remote: https://dumps.wikimedia.org/enwiki/
 data_date: '20190301'
 
 # Available memory (log base 2)
-free_memory: 29  # 2**29 is 512MB
+free_memory: 28  # 2**28 is 256MB
 temp_dir: '/home/pi/wikipedia-links'
 
 # Tables to download and unzip from remote

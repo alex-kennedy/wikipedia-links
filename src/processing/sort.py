@@ -24,6 +24,7 @@ def chunks_of_file(fp, n_bytes):
         if not d:
             break
         yield d
+        del d
 
 
 def grouper(iterable, n):
@@ -83,13 +84,19 @@ def sort_chunks(file_to_sort, temp, n_bytes=2**20):
         temp (str): path to directory in which to save chunks
         n_bytes (int): maximum size of each chunk file
     """
-    with open(file_to_sort) as fp:
-        for i, chunk in tqdm(enumerate(chunks_of_file(fp, n_bytes))):
+    with open(file_to_sort, 'rb') as fp:
+        i = 0
+        chunk = fp.readlines(n_bytes)
+        while chunk:
             chunk.sort()
 
-            with open(os.path.join(temp, 'chunk_{}'.format(i)), 'w') as out:
+            with open(os.path.join(temp, str(i)), 'wb') as out:
                 out.writelines(chunk)
-            
+
+            del chunk
+            chunk = fp.readlines(n_bytes)
+            i += 1
+
 
 def external_sort(in_file, out_file, n_bytes=2**25, k=10, temp_dir=None):
     """
