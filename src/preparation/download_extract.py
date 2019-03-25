@@ -43,57 +43,37 @@ def unzip_table(config, table):
             shutil.copyfileobj(f_in, f_out)
 
 
-def sql_dump_to_csv(in_file, out_file):
+def sql_dump_to_csv(in_file, out_file, n_bytes=2**26):
     """Converts a MySQL dump from the wikimedia site to a CSV.
 
     Args:
         in_file (str): path to MySQL dump
         out_file (str): path to output CSV
+        n_bytes (int): bytes of the in_file to load at once
     """
     # Statistics
     total_size = os.stat(in_file).st_size
-    progress = tqdm(total=total_size)
-
-    # TODO fix error which arises when title includes a bracket
-    # Returns all groups inside round brackets
-    pattern = re.compile(b'[(](.*?)[)]')
+    progress = tqdm(total=total_size, unit_scale=True)
 
     # This is done line by line because each line is ~1MB
     with open(in_file, 'rb') as f, open(out_file, 'wb') as out:
-        for line in f:
-            progress.update(len(line))
+        chunk = f.readlines(n_bytes)
+        while chunk:
+            for line in chunk:
+                progress.update(len(line))
 
-            # Ignore lines that dont contain values
-            if line[:11] != b'INSERT INTO':
-                continue
+                # Ignore lines that dont contain values
+                if line[:11] != b'INSERT INTO':
+                    continue
 
-            # Write values in the line to CSV
-            match = pattern.findall(line)
-            csv_line = b'\n'.join(match) + b'\n'
-            out.write(csv_line)
+                entries = line.split(b'),(')
 
+                # Cleans up the first and last entry
+                entries[0] = entries[0][entries[0].find(b'(') + 1:]
+                entries[-1] = entries[-1][:-3]  # ends in ');\n'
 
-def download_table_to_csv(config, table, force=False):
-    """Convert a wiki SQL table to a CSV.
+                csv_line = b'\n'.join(entries) + b'\n'
+                out.write(csv_line)
 
-    The the decompressed SQL file does not exist, download_and_decompress is 
-    called. 
-    
-    Args:
-        config (dict): project config dictionary
-        table (str): table name to convert
-        force (bool): overwrite CSV if it is already present
-    """
-    sql_file_name = '-'.join(['enwiki', str(config['data_date']), table + '.sql'])
-    path_in = os.path.join(config['data_root'], table, sql_file_name)
-    path_out = os.path.join(config['data_root'], table, table + '.csv')
-
-    if not os.path.exists(path_in):
-        download_and_decompress(config, table)
-
-    if not force and os.path.exists(path_out):
-        print('Table ({}) already converted to CSV'.format(table))
-        return 
-
-    print('Unpacking table: {}'.format(table))
-    sql_dump_to_csv(path_in, path_out)
+            del chunk
+            chunk = f.readlines(n_bytes)

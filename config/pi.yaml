@@ -45,8 +45,10 @@ tables:
 
 # Files generated during processing
 gen:
-  page_unsorted: 'gen/page_unsorted.csv'
-  page_redirects_unsorted: 'gen/page_redirects_unsorted.csv'
-  page: 'gen/page.csv'
-  page_redirects: 'gen/page_redirects.csv'
+  page_direct_unsorted: 'gen/page_direct_unsorted.csv'
+  page_redirect_unsorted: 'gen/page_redirect_unsorted.csv'
+  page_direct: 'gen/page_direct.csv'
+  page_redirect: 'gen/page_redirect.csv'
+  page_redirect_resolved: 'gen/page_redirect_resolved.csv'
+  page: 'page.csv'
 

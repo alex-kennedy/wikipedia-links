@@ -67,6 +67,7 @@ def k_way_merge(files, out_file, n=2**20):
             
             item = next(q, None)
             if not item:
+                # No items were added to the queue, so it's done
                 return
             out.write(item)
 
