@@ -5,6 +5,7 @@ import yaml
 
 import preparation.download_extract
 import processing.id_by_title
+import processing.pagelinks
 from processing.sort import external_sort
 
 
@@ -165,6 +166,14 @@ class ResolveRedirects(luigi.Task):
     def run(self):
         config = load_config(self.config_path)
         processing.id_by_title.resolve_redirects(config)
+
+
+class ExtractPageLinksColumns(luigi.Task):
+    config_path = luigi.Parameter()
+
+    def run(self):
+        config = load_config(self.config_path)
+        processing.pagelinks.extract_pagelinks_columns(config)
 
 
 if __name__ == '__main__':

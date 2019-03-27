@@ -13,9 +13,9 @@ tables:
   pagelinks:
     names:
       - pl_from
-      - pl_from_namespace
       - pl_namespace
       - pl_title
+      - pl_from_namespace
 
   # https://www.mediawiki.org/wiki/Manual:Page_table
   page:
@@ -51,4 +51,5 @@ gen:
   page_redirect: 'gen/page_redirect.csv'
   page_redirect_resolved: 'gen/page_redirect_resolved.csv'
   page: 'page.csv'
+  pagelinks_unresolved: 'gen/pagelinks_unresolved.csv'
 
