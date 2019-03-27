@@ -1,4 +1,5 @@
 import os
+import time
 
 class BinarySearchFile:
     def __init__(self, file_name, num_lines, line_len):
@@ -9,20 +10,18 @@ class BinarySearchFile:
         self.f = open(file_name, 'rb')
         self.size = os.stat(file_name).st_size
 
-        for line in self.f:
-            print(len(line))
-
     def __getitem__(self, line_num):
-        return
+        self.f.seek(self.line_len * line_num)
+        return self.f.readline()
 
     def search(self, key):
-        return
+        return self.binary_search(key, 0, self.num_lines - 1)
 
     def binary_search(self, key, low, high):
         if low > high:
             return -1
 
-        middle = (low + high) / 2
+        middle = (low + high) // 2
 
         if self[middle] == key:
             return middle
@@ -33,13 +32,12 @@ class BinarySearchFile:
             return self.binary_search(key, middle + 1, high)
 
 
-
 def temp():
     from random import choice
     alphabet = 'abcdefghijklmnopqrstuvwxyz'
     strings = []
     with open('src/processing/sorted_file.txt', 'w') as out:
-        for _ in range(564):
+        for _ in range(1000000):
             string = ''.join([choice(alphabet) for _ in range(57)])
             strings.append(string)
 
@@ -48,5 +46,13 @@ def temp():
 
 if __name__ == '__main__':
     # temp()
-    bsearch = BinarySearchFile('src/processing/sorted_file.txt', 564, 58)
-    print(bsearch.size)
+    # with open('src/processing/sorted_file.txt') as f:
+    #     f.seek(58)
+    #     print(f.read())
+
+    bsearch = BinarySearchFile('src/processing/sorted_file.txt', 1000000, 58)
+    
+    start = time.time()
+    for i in range(100000):
+        bsearch.search(b'ptgikejzsanybrpjoqeuqzknjedcqyaqfzoddcdmdytnlpsrgppwgtklp\n')
+    print(time.time() - start)
