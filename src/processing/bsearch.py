@@ -1,5 +1,4 @@
 import os
-import time
 
 
 class BinarySearchFile:
@@ -10,7 +9,7 @@ class BinarySearchFile:
                  line_len=None,
                  key_len=None):
         self.file_name = file_name
-        self.f = open(file_name, encoding='utf-8')
+        self.f = open(file_name, 'rb')
 
         if create_index:
             self.index = self._create_byte_index()
@@ -44,8 +43,8 @@ class BinarySearchFile:
     def _index_get(self, line_num):
         self.f.seek(self.index[line_num])
         line = self.f.readline()
-        i = line.rfind(',')
-        return line[:i], line[i + 1:]
+        i = line.rfind(b',')
+        return line[:i], line[i + 1:-1]
 
     def _fixed_get(self, line_num):
         self.f.seek(self.line_len * line_num)
