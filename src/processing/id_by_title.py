@@ -5,8 +5,6 @@ import yaml
 from atomicwrites import atomic_write
 from tqdm import tqdm
 
-from processing.sort import external_sort
-
 
 def load_config(config_path):
     """Loads YAML config"""
@@ -26,7 +24,7 @@ def extract_page_columns(config):
 
     page_it = pd.read_csv(
         source, chunksize=chunksize, names=names, dtype=str, engine='c')
-    page_it = tqdm(page_it, unit_scale=chunksize)
+    page_it = tqdm(page_it, unit_scale=True)
 
     with atomic_write(page, overwrite=True) as fp_page:
         with atomic_write(redirects, overwrite=True) as fp_redirects:
@@ -34,12 +32,14 @@ def extract_page_columns(config):
                 # We will use only main namespace pages (i.e. content)
                 ch = ch[ch['page_namespace'] == '0']
 
-                is_redirect = ch[ch['page_is_redirect'] == '1'][extract_columns]
+                # Redirects filter
+                r = ch['page_is_redirect'] == '1'
 
-                is_redirect.to_csv(
-                    fp_redirects, index=False, header=None, mode='a')
-                ch[extract_columns].to_csv(
-                    fp_page, index=False, header=False, mode='a')
+                ch = ch[extract_columns]
+
+                # Writes redirects and direct pages to respective files
+                ch[r].to_csv(fp_redirects, index=False, header=None, mode='a')
+                ch[~r].to_csv(fp_page, index=False, header=False, mode='a')
 
 
 def resolve_redirects(config):
