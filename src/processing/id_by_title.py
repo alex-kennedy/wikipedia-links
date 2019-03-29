@@ -62,11 +62,11 @@ def resolve_redirects(config):
     # get to_id from page.csv
 
     # set from_title in page.csv to correct to_id, so searching on that title
-    # gives the id of the 'to' page. 
+    # gives the id of the 'to' page.
 
 
 if __name__ == '__main__':
-    # config = utils.load_config('config/pi.yaml')
-    # extract_page_columns(config)
-    # sort_on_title(config)
-    pass
+    config = load_config('config/pi.yaml')
+    root = config['data_root']
+    source = os.path.join(root, config['gen']['page_direct'])
+    out = os.path.join(root, 'gen/page_index.csv')
