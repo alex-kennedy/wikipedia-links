@@ -52,4 +52,5 @@ gen:
   page_redirect_resolved: 'gen/page_redirect_resolved.csv'
   page: 'page.csv'
   pagelinks_unresolved: 'gen/pagelinks_unresolved.csv'
+  redirect: 'gen/redirect.csv'
 

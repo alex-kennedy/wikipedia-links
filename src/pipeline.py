@@ -131,6 +131,22 @@ class SortRedirectTable(luigi.Task):
         external_sort(unsorted, out, n_bytes=n_bytes, temp_dir=temp)
 
 
+class ExtractRedirectColumns(luigi.Task):
+    config_path = luigi.Parameter()
+
+    def requires(self):
+        return AllTablesAsCsv(config_path=self.config_path)
+
+    def output(self):
+        config = load_config(self.config_path)
+        root = config['data_root']
+        return luigi.LocalTarget(os.path.join(root, config['gen']['redirect']))
+
+    def run(self):
+        config = load_config(self.config_path)
+        processing.id_by_title.extract_redirect_columns(config)
+
+
 class SortPageTable(luigi.Task):
     config_path = luigi.Parameter()
 
@@ -160,6 +176,7 @@ class ResolveRedirects(luigi.Task):
         tasks = [
             SortPageTable(config_path=self.config_path),
             SortRedirectTable(config_path=self.config_path),
+            ExtractRedirectColumns(config_path=self.config_path),
         ]
         return tasks
 

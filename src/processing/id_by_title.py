@@ -5,6 +5,8 @@ import yaml
 from atomicwrites import atomic_write
 from tqdm import tqdm
 
+from processing.bsearch import BinarySearchFile
+
 
 def load_config(config_path):
     """Loads YAML config"""
@@ -42,24 +44,71 @@ def extract_page_columns(config):
                 ch[~r].to_csv(fp_page, index=False, header=False, mode='a')
 
 
+def extract_redirect_columns(config):
+    root = config['data_root']
+    source = os.path.join(root, 'redirect', 'redirect.csv')
+    out = os.path.join(root, config['gen']['redirect'])
+    names = config['tables']['redirect']['names']
+
+    extract_columns = ['rd_from', 'rd_title']
+    chunksize = 10**4  # measured in lines, not bytes
+
+    page_it = pd.read_csv(
+        source, chunksize=chunksize, names=names, dtype=str, engine='c')
+    page_it = tqdm(page_it, unit_scale=True, desc='Extracting Redirect Table: ')
+
+    with atomic_write(out) as f:
+        for ch in page_it:
+            # Only uses content
+            ch = ch[ch['rd_namespace'] == '0']
+
+            ch[extract_columns].to_csv(f, index=False, header=None, mode='a')
+
+
 def resolve_redirects(config):
     root = config['data_root']
-    resolved_path = os.path.join(root, config['gen']['page_redirect_resolved'])
-    unresolved_path = os.path.join(root, config['gen']['page_redirect'])
-    redirect_path = os.path.join(root, 'redirect', 'redirect.csv')
 
-    with atomic_write(resolved_path) as unresolved_path, \
-         open(unresolved_path) as unresolved, \
-         open(redirect_path) as redirect:
-        pass
+    # Redirects to resolve
+    page_redirect_path = os.path.join(root, config['gen']['page_redirect'])
+
+    # `redirect` table providing ID -> Title lookup
+    redirect_path = os.path.join(root, config['gen']['redirect'])
+
+    # `page` table giving Title -> true ID lookup
+    page_path = os.path.join(root, config['gen']['page_direct'])
+
+    # Output file of resolved redirects
+    resolved_path = os.path.join(root, config['gen']['page_redirect_resolved'])
+
+    chunk_size = 2**20  # uses 1MB chunks
+
+    with atomic_write(resolved_path, mode='wb') as out, \
+         BinarySearchFile(redirect_path) as redirect, \
+         BinarySearchFile(page_path) as page, \
+         open(page_redirect_path, 'rb') as rpage:
+
+        pbar = tqdm(desc='Resolving redirects: ')
+
+        ch = rpage.readlines(chunk_size)
+        while ch:
+            idx = [line.rfind(b',') for line in ch]
+            ch = [(ch[i][:v], ch[i][v + 1:-1]) for i, v in enumerate(idx)]
+            ch = sorted(ch, key=lambda x: x[1])
+
+            to_titles = redirect.search_many([x[1] for x in ch])
+            to_ids = [page.search(t) if t else False for t in to_titles]
+
+            for i, to_id in to_ids:
+                if to_id:
+                    out.write(ch[i][0] + b',' + to_id, b'\n')
         
     # get from_title and from_id from page.csv
     # e.g. 'AccessibleComputing',10
 
-    # go to from_id and to_title from redirects.csv
-    # e.g. 10,0,'Computer_accessibility','',''
+    # go to from_id and to_title from redirects (original table x.csv)
+    # e.g. 10,'Computer_accessibility'
 
-    # get to_id from page.csv
+    # get to_id from page (original table x.csv)
 
     # set from_title in page.csv to correct to_id, so searching on that title
     # gives the id of the 'to' page.
@@ -67,6 +116,7 @@ def resolve_redirects(config):
 
 if __name__ == '__main__':
     config = load_config('config/pi.yaml')
-    root = config['data_root']
-    source = os.path.join(root, config['gen']['page_direct'])
-    out = os.path.join(root, 'gen/page_index.csv')
+    # root = config['data_root']
+    # source = os.path.join(root, config['gen']['page_direct'])
+    # out = os.path.join(root, 'gen/page_index.csv')
+    resolve_redirects(config)

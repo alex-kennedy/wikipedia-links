@@ -53,13 +53,13 @@ class BinarySearchFile:
 
     def _binary_search(self, key, low, high):
         if low > high:
-            return -1
+            return False, -1
 
         middle = (low + high) // 2
         result, value = self.get_line(middle)
 
         if result == key:
-            return value
+            return value, middle
 
         if result > key:
             return self._binary_search(key, low, middle - 1)
@@ -67,18 +67,19 @@ class BinarySearchFile:
             return self._binary_search(key, middle + 1, high)
 
     def search(self, key):
-        return self._binary_search(key, 0, self.n_lines - 1)
+        return self._binary_search(key, 0, self.n_lines - 1)[0]
 
     def search_many(self, keys):
-        keys.sort()
         results = []
 
         low = 0
         for key in keys:
-            i = self._binary_search(key, low, self.n_lines - 1)
-            if i != -1:
+            value, i = self._binary_search(key, low, self.n_lines - 1)
+            if value is not False:
                 low = i
-            results.append(i)
+            results.append(value)
+
+        return results
 
 
 def temp():
