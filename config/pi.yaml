@@ -50,7 +50,6 @@ gen:
   page_direct: 'gen/page_direct.csv'
   page_redirect: 'gen/page_redirect.csv'
   page_redirect_resolved: 'gen/page_redirect_resolved.csv'
-  page: 'page.csv'
-  pagelinks_unresolved: 'gen/pagelinks_unresolved.csv'
   redirect: 'gen/redirect.csv'
-
+  page: 'gen/page.csv'
+  pagelinks_unresolved: 'gen/pagelinks_unresolved.csv'

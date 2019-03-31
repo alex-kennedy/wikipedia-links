@@ -1,4 +1,5 @@
 import os
+from tempfile import TemporaryDirectory
 
 import pandas as pd
 import yaml
@@ -6,6 +7,7 @@ from atomicwrites import atomic_write
 from tqdm import tqdm
 
 from processing.bsearch import BinarySearchFile
+from processing.sort import external_sort, k_way_merge
 
 
 def load_config(config_path):
@@ -87,31 +89,45 @@ def resolve_redirects(config):
          BinarySearchFile(page_path) as page, \
          open(page_redirect_path, 'rb') as rpage:
 
-        pbar = tqdm(desc='Resolving redirects: ')
+        pbar = tqdm(desc='Resolving redirects')
 
         ch = rpage.readlines(chunk_size)
         while ch:
+            # Gets [from_title, from_id] for each line and sorts on from_id
             idx = [line.rfind(b',') for line in ch]
-            ch = [(ch[i][:v], ch[i][v + 1:-1]) for i, v in enumerate(idx)]
-            ch = sorted(ch, key=lambda x: x[1])
+            ch = [[ch[i][:v], ch[i][v + 1:-1]] for i, v in enumerate(idx)]
+            ch.sort(key=lambda x: x[1])
 
-            to_titles = redirect.search_many([x[1] for x in ch])
-            to_ids = [page.search(t) if t else False for t in to_titles]
+            # Searches the redirect table for to_titles
+            to_titles, _ = redirect.search_many([x[1] for x in ch])
+            [ch[i].append(to_titles[i][0]) for i in range(len(ch))]
 
-            for i, to_id in to_ids:
-                if to_id:
-                    out.write(ch[i][0] + b',' + to_id, b'\n')
-        
-    # get from_title and from_id from page.csv
-    # e.g. 'AccessibleComputing',10
+            # Searches the direct pages table for their ID
+            to_ids = [page.search(t[2]) if t[2] else (False, -1) for t in ch]
+            for i, to_id in enumerate(to_ids):
+                if to_id[0]:
+                    out.write(ch[i][0] + b',' + to_id[0] + b'\n')
 
-    # go to from_id and to_title from redirects (original table x.csv)
-    # e.g. 10,'Computer_accessibility'
+            ch = rpage.readlines(chunk_size)
+            pbar.update(len(ch))
 
-    # get to_id from page (original table x.csv)
 
-    # set from_title in page.csv to correct to_id, so searching on that title
-    # gives the id of the 'to' page.
+def merge_page_tables(config):
+    root = config['data_root']
+    res_in = os.path.join(root, config['gen']['page_redirect_resolved'])
+    page_direct = os.path.join(root, config['gen']['page_direct'])
+    page_out = os.path.join(root, config['gen']['page'])
+
+    # sort resolved
+    with TemporaryDirectory() as temp:
+        res_sorted = os.path.join(temp, 'res_sorted')
+        external_sort(
+            res_in,
+            os.path.join(temp, res_sorted),
+            n_bytes=2**config['free_memory'])
+
+        files = [page_direct, res_sorted]
+        k_way_merge(files, page_out)
 
 
 if __name__ == '__main__':

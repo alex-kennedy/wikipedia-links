@@ -157,7 +157,7 @@ class SortPageTable(luigi.Task):
         config = load_config(self.config_path)
         root = config['data_root']
         return luigi.LocalTarget(os.path.join(root, config['gen']['page_direct']))
-        
+
     def run(self):
         config = load_config(self.config_path)
         root = config['data_root']
@@ -180,13 +180,44 @@ class ResolveRedirects(luigi.Task):
         ]
         return tasks
 
+    def output(self):
+        config = load_config(self.config_path)
+        root = config['data_root']
+        return luigi.LocalTarget(
+            os.path.join(root, config['gen']['page_redirect_resolved']))
+
     def run(self):
         config = load_config(self.config_path)
         processing.id_by_title.resolve_redirects(config)
 
 
-class ExtractPageLinksColumns(luigi.Task):
+class MergePage(luigi.Task):
     config_path = luigi.Parameter()
+
+    def requires(self):
+        return ResolveRedirects(config_path=self.config_path)
+
+    def output(self):
+        config = load_config(self.config_path)
+        root = config['data_root']
+        return luigi.LocalTarget(os.path.join(root, config['gen']['page']))
+
+    def run(self):
+        config = load_config(self.config_path)
+        processing.id_by_title.merge_page_tables(config)
+
+
+class ExtractPagelinksColumns(luigi.Task):
+    config_path = luigi.Parameter()
+
+    def requires(self):
+        return AllTablesAsCsv(config_path=self.config_path)
+
+    def output(self):
+        config = load_config(self.config_path)
+        root = config['data_root']
+        return luigi.LocalTarget(
+            os.path.join(root, config['gen']['pagelinks_unresolved']))
 
     def run(self):
         config = load_config(self.config_path)

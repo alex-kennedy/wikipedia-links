@@ -1,28 +1,33 @@
-import os
+from tqdm import tqdm
 
 
 class BinarySearchFile:
     def __init__(self,
                  file_name,
-                 create_index=True,
+                 fixed_width=False,
+                 index=None,
                  n_lines=None,
                  line_len=None,
                  key_len=None):
         self.file_name = file_name
         self.f = open(file_name, 'rb')
 
-        if create_index:
-            self.index = self._create_byte_index()
-            self.n_lines = len(self.index)
-            self.get_line = self._index_get
-        else:
+        if fixed_width:
             if not (n_lines and line_len and key_len):
-                raise ValueError('If create_index is not True, n_lines, '
-                                 'line_len, and key_len must be provided.')
+                raise ValueError('If fixed_width is True, n_lines, line_len,'
+                                 'and key_len must be provided.')
             self.n_lines = n_lines
             self.line_len = line_len
             self.key_len = key_len
             self.get_line = self._fixed_get
+        else:
+            if index is None:
+                self.index = self._create_byte_index()
+            else:
+                self.index = index
+            self.n_lines = len(self.index)
+            self.get_line = self._index_get
+            
 
     def __enter__(self):
         return self
@@ -36,7 +41,7 @@ class BinarySearchFile:
     def _create_byte_index(self):
         locs = [0]
         with open(self.file_name, 'rb') as f:
-            for _ in f:
+            for _ in tqdm(f, desc='Indexing file', unit_scale=True):
                 locs.append(f.tell())
         return locs[:-1]
 
@@ -67,19 +72,31 @@ class BinarySearchFile:
             return self._binary_search(key, middle + 1, high)
 
     def search(self, key):
-        return self._binary_search(key, 0, self.n_lines - 1)[0]
+        return self._binary_search(key, 0, self.n_lines - 1)
 
-    def search_many(self, keys):
-        results = []
+    def search_many(self, keys, low=None, high=None):
+        if low is None:
+            low = 0
+        if high is None:
+            high = self.n_lines - 1
+        
+        results = [(False, -1)] * len(keys)
 
-        low = 0
-        for key in keys:
-            value, i = self._binary_search(key, low, self.n_lines - 1)
-            if value is not False:
+        # Finds an upper bound
+        for j in range(len(keys) - 1, -1, -1):
+            value, i = self._binary_search(keys[j], low, high)
+            results[j] = (value, i)
+            if i > -1:
+                high = i
+                break
+        
+        for k in range(j):
+            value, i = self._binary_search(keys[k], low, high)
+            results[k] = (value, i)
+            if i > -1:
                 low = i
-            results.append(value)
 
-        return results
+        return results, high
 
 
 def temp():
