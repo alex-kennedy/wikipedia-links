@@ -11,7 +11,7 @@ def extract_pagelinks_columns(config):
     out = os.path.join(root, config['gen']['pagelinks_unresolved'])
     names = config['tables']['pagelinks']['names']
 
-    extract_columns = ['pl_from', 'pl_title']
+    extract_columns = ['pl_title', 'pl_from']
     chunksize = 10**6  # measured in lines, not bytes
 
     page_it = pd.read_csv(
