@@ -9,8 +9,7 @@ from tqdm import tqdm
 
 
 def chunks_of_file(fp, n_bytes):
-    """
-    Yields lines of a file such that size of lines is not greater than n_bytes
+    """Yields lines of a file with size not greater than n_bytes.
 
     Args:
         fp (file pointer): file to read
@@ -28,8 +27,7 @@ def chunks_of_file(fp, n_bytes):
 
 
 def grouper(iterable, n):
-    """
-    Yields the next n items from iterable until exhausted. 
+    """Yields the next n items from iterable until exhausted. 
 
     Args:
         iterable (iterable): an iterable
@@ -46,8 +44,7 @@ def grouper(iterable, n):
 
 
 def k_way_merge(files, out_file, n=2**20):
-    """
-    Merges sorted files into a single sorted file.
+    """Merges sorted files into a single sorted file.
 
     This function loads n bytes of lines from each file in files, and merges
     them into a single file using a min heap. 
@@ -64,7 +61,7 @@ def k_way_merge(files, out_file, n=2**20):
 
         while True:
             q = heapq.merge(*[next(c, []) for c in chunks])
-            
+
             item = next(q, None)
             if not item:
                 # No items were added to the queue, so it's done
@@ -76,9 +73,9 @@ def k_way_merge(files, out_file, n=2**20):
 
 
 def sort_chunks(file_to_sort, temp, n_bytes=2**20):
-    """
-    Creates sorted chunks from file_to_sort. Each chunk will be less than or 
-    equal to n_bytes in size. 
+    """Creates sorted chunks from file_to_sort. 
+    
+    Each chunk will be less than or equal to n_bytes in size. 
 
     Args:
         file_to_sort (str): path to input file
@@ -100,8 +97,7 @@ def sort_chunks(file_to_sort, temp, n_bytes=2**20):
 
 
 def external_sort(in_file, out_file, n_bytes=2**25, k=10, temp_dir=None):
-    """
-    Performs an external merge sort on an input file. 
+    """Performs an external merge sort on an input file. 
 
     The function works by first splitting in_file into sorted chunks using the
     sort_chunks function. 
@@ -123,7 +119,7 @@ def external_sort(in_file, out_file, n_bytes=2**25, k=10, temp_dir=None):
     with TemporaryDirectory(prefix='sort-', dir=temp_dir) as temp:
         # Sort into chunks
         chunks_dir = os.path.join(temp, str(pass_num))
-        
+
         print('Sorting Chunks...')
         os.mkdir(chunks_dir)
         sort_chunks(in_file, chunks_dir, n_bytes=n_bytes)
@@ -134,16 +130,22 @@ def external_sort(in_file, out_file, n_bytes=2**25, k=10, temp_dir=None):
 
             files_to_merge = glob(os.path.join(temp, str(pass_num - 1), '*'))
             if len(files_to_merge) <= k:
-                k_way_merge(files_to_merge, out_file, n=int(n_bytes/k))
+                k_way_merge(files_to_merge, out_file, n=int(n_bytes / k))
                 return
 
             merge_to = os.path.join(temp, str(pass_num))
             os.mkdir(merge_to)
 
             for i, k_files in tqdm(enumerate(grouper(files_to_merge, k))):
-                k_way_merge(k_files, os.path.join(merge_to, str(i)), n=int(n_bytes/k))
+                k_way_merge(k_files,
+                            os.path.join(merge_to, str(i)),
+                            n=int(n_bytes / k))
                 [os.remove(f) for f in k_files]
 
 
 if __name__ == '__main__':
-    external_sort('data/raw/unsorted.txt', 'data/raw/sorted.txt', n_bytes=2**19, k=5, temp_dir='data/raw/temp')
+    external_sort('data/raw/unsorted.txt',
+                  'data/raw/sorted.txt',
+                  n_bytes=2**19,
+                  k=5,
+                  temp_dir='data/raw/temp')

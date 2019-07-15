@@ -12,7 +12,7 @@ from processing.sort import external_sort
 def load_config(config_path):
     """Loads YAML config"""
     with open(config_path) as f:
-        return yaml.load(f)
+        return yaml.load(f, Loader=yaml.SafeLoader)
 
 
 class DownloadZippedTable(luigi.Task):
@@ -22,11 +22,16 @@ class DownloadZippedTable(luigi.Task):
     def output(self):
         config = load_config(self.config_path)
         folder = os.path.join(config['data_root'], self.table)
-        name = '-'.join(['enwiki', str(config['data_date']), self.table + '.sql.gz'])
+        name = '-'.join(
+            ['enwiki', str(config['data_date']), self.table + '.sql.gz'])
         return luigi.LocalTarget(os.path.join(folder, name))
 
     def run(self):
-        pass
+        config = load_config(self.config_path)
+        folder = os.path.join(config['data_root'], self.table)
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        preparation.download_extract.download_table(config, self.table)
 
 
 class UnzipTable(luigi.Task):
@@ -34,16 +39,19 @@ class UnzipTable(luigi.Task):
     table = luigi.Parameter()
 
     def requires(self):
-        return DownloadZippedTable(config_path=self.config_path, table=self.table)
+        return DownloadZippedTable(config_path=self.config_path,
+                                   table=self.table)
 
     def output(self):
         config = load_config(self.config_path)
         folder = os.path.join(config['data_root'], self.table)
-        name = '-'.join(['enwiki', str(config['data_date']), self.table + '.sql'])
+        name = '-'.join(
+            ['enwiki', str(config['data_date']), self.table + '.sql'])
         return luigi.LocalTarget(os.path.join(folder, name))
 
     def run(self):
-        pass
+        config = load_config(self.config_path)
+        preparation.download_extract.unzip_table(config, self.table)
 
 
 class SqlDumpToCsv(luigi.Task):
@@ -84,7 +92,11 @@ class AllTablesAsCsv(luigi.Task):
 
         return tasks
 
+    def run(self):
+        pass
+
     def complete(self):
+        # TODO: work out why this function is required when dependencies are met
         # This task is complete if its dependencies are met
         return True
 
