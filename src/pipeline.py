@@ -22,8 +22,8 @@ class DownloadZippedTable(luigi.Task):
     def output(self):
         config = load_config(self.config_path)
         folder = os.path.join(config['data_root'], self.table)
-        name = '-'.join(
-            ['enwiki', str(config['data_date']), self.table + '.sql.gz'])
+        bits = ['enwiki', str(config['data_date']), self.table + '.sql.gz']
+        name = '-'.join(bits)
         return luigi.LocalTarget(os.path.join(folder, name))
 
     def run(self):
@@ -71,41 +71,19 @@ class SqlDumpToCsv(luigi.Task):
         config = load_config(self.config_path)
 
         folder = os.path.join(config['data_root'], self.table)
-        sql = '-'.join(['enwiki', str(config['data_date']), self.table + '.sql'])
+        bits = ['enwiki', str(config['data_date']), self.table + '.sql']
+        sql = '-'.join(bits)
         path_in = os.path.join(folder, sql)
         path_out = os.path.join(folder, self.table + '.csv')
 
         preparation.download_extract.sql_dump_to_csv(path_in, path_out)
 
 
-class AllTablesAsCsv(luigi.Task):
-    config_path = luigi.Parameter()
-
-    def requires(self):
-        config = load_config(self.config_path)
-        tables = [t for t in config['tables'].keys()]
-
-        tasks = []
-        for table in tables:
-            task = SqlDumpToCsv(config_path=self.config_path, table=table)
-            tasks.append(task)
-
-        return tasks
-
-    def run(self):
-        pass
-
-    def complete(self):
-        # TODO: work out why this function is required when dependencies are met
-        # This task is complete if its dependencies are met
-        return True
-
-
 class ExtractPageColumns(luigi.Task):
     config_path = luigi.Parameter()
 
     def requires(self):
-        return AllTablesAsCsv(config_path=self.config_path)
+        return SqlDumpToCsv(config_path=self.config_path, table='page')
 
     def output(self):
         config = load_config(self.config_path)
@@ -135,7 +113,7 @@ class SortRedirectTable(luigi.Task):
     def run(self):
         config = load_config(self.config_path)
         root = config['data_root']
-        n_bytes = 2 ** config['free_memory']
+        n_bytes = 2**config['free_memory']
         temp = config['temp_dir']
 
         unsorted = os.path.join(root, config['gen']['page_redirect_unsorted'])
@@ -147,7 +125,7 @@ class ExtractRedirectColumns(luigi.Task):
     config_path = luigi.Parameter()
 
     def requires(self):
-        return AllTablesAsCsv(config_path=self.config_path)
+        return SqlDumpToCsv(config_path=self.config_path, table='redirect')
 
     def output(self):
         config = load_config(self.config_path)
@@ -168,12 +146,13 @@ class SortPageTable(luigi.Task):
     def output(self):
         config = load_config(self.config_path)
         root = config['data_root']
-        return luigi.LocalTarget(os.path.join(root, config['gen']['page_direct']))
+        return luigi.LocalTarget(
+            os.path.join(root, config['gen']['page_direct']))
 
     def run(self):
         config = load_config(self.config_path)
         root = config['data_root']
-        n_bytes = 2 ** config['free_memory']
+        n_bytes = 2**config['free_memory']
         temp = config['temp_dir']
 
         unsorted = os.path.join(root, config['gen']['page_direct_unsorted'])
@@ -223,7 +202,7 @@ class ExtractPagelinksColumns(luigi.Task):
     config_path = luigi.Parameter()
 
     def requires(self):
-        return AllTablesAsCsv(config_path=self.config_path)
+        return SqlDumpToCsv(config_path=self.config_path, table='pagelinks')
 
     def output(self):
         config = load_config(self.config_path)
@@ -236,6 +215,23 @@ class ExtractPagelinksColumns(luigi.Task):
         processing.pagelinks.extract_pagelinks_columns(config)
 
 
+class ResolvePagelinks(luigi.Task):
+    config_path = luigi.Parameter()
+
+    def requires(self):
+        return ExtractPagelinksColumns(config_path=self.config_path)
+
+    def output(self):
+        config = load_config(self.config_path)
+        root = config['data_root']
+        return luigi.LocalTarget(os.path.join(root,
+                                              config['gen']['pagelinks']))
+
+    def run(self):
+        config = load_config(self.config_path)
+        processing.pagelinks.resolve_pagelinks(config)
+
+
 if __name__ == '__main__':
-    luigi.build([SortRedirectTable(config_path='config/pi.yaml')],
+    luigi.build([ExtractPageColumns(config_path='config/desktop-new.yaml')],
                 local_scheduler=True)

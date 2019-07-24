@@ -26,12 +26,15 @@ def extract_page_columns(config):
     extract_columns = ['page_title', 'page_id']
     chunksize = 10**4  # measured in lines, not bytes
 
-    page_it = pd.read_csv(
-        source, chunksize=chunksize, names=names, dtype=str, engine='c')
-    page_it = tqdm(page_it, unit_scale=True)
-
-    with atomic_write(page, overwrite=True) as fp_page:
-        with atomic_write(redirects, overwrite=True) as fp_redirects:
+    page_it = pd.read_csv(source,
+                          chunksize=chunksize,
+                          names=names,
+                          dtype=object,
+                          engine='c',
+                          encoding='utf-8')
+    page_it = tqdm(page_it, unit_scale=chunksize)
+    with atomic_write(page, encoding='utf-8') as fp_page:
+        with atomic_write(redirects, encoding='utf-8') as fp_redirects:
             for ch in page_it:
                 # We will use only main namespace pages (i.e. content)
                 ch = ch[ch['page_namespace'] == '0']
@@ -51,19 +54,20 @@ def extract_redirect_columns(config):
     source = os.path.join(root, 'redirect', 'redirect.csv')
     out = os.path.join(root, config['gen']['redirect'])
     names = config['tables']['redirect']['names']
-
     extract_columns = ['rd_from', 'rd_title']
     chunksize = 10**4  # measured in lines, not bytes
 
-    page_it = pd.read_csv(
-        source, chunksize=chunksize, names=names, dtype=str, engine='c')
-    page_it = tqdm(page_it, unit_scale=True, desc='Extracting Redirect Table: ')
-
-    with atomic_write(out) as f:
+    page_it = pd.read_csv(source,
+                          chunksize=chunksize,
+                          names=names,
+                          dtype=object,
+                          engine='c',
+                          encoding='utf-8')
+    page_it = tqdm(page_it, unit_scale=chunksize, desc='Extracting Redirect')
+    with atomic_write(out, encoding='utf-8') as f:
         for ch in page_it:
             # Only uses content
             ch = ch[ch['rd_namespace'] == '0']
-
             ch[extract_columns].to_csv(f, index=False, header=None, mode='a')
 
 
@@ -121,10 +125,9 @@ def merge_page_tables(config):
     # sort resolved
     with TemporaryDirectory() as temp:
         res_sorted = os.path.join(temp, 'res_sorted')
-        external_sort(
-            res_in,
-            os.path.join(temp, res_sorted),
-            n_bytes=2**config['free_memory'])
+        external_sort(res_in,
+                      os.path.join(temp, res_sorted),
+                      n_bytes=2**config['free_memory'])
 
         files = [page_direct, res_sorted]
         k_way_merge(files, page_out)
