@@ -6,6 +6,7 @@ import yaml
 import preparation.download_extract
 import processing.id_by_title
 import processing.pagelinks
+from processing import bsearch
 from processing.sort import external_sort
 
 
@@ -160,14 +161,43 @@ class SortPageTable(luigi.Task):
         external_sort(unsorted, out, n_bytes=n_bytes, temp_dir=temp)
 
 
+class IndexForResolveRedirects(luigi.Task):
+    config_path = luigi.Parameter()
+
+    def requires(self):
+        return [
+            SortPageTable(config_path=self.config_path),
+            SortRedirectTable(config_path=self.config_path)
+        ]
+
+    def output(self):
+        config = load_config(self.config_path)
+        root_to = lambda p: os.path.join(config['data_root'], p)
+        return [
+            luigi.LocalTarget(root_to(config['gen']['redirect_index'])),
+            luigi.LocalTarget(root_to(config['gen']['page_direct_index']))
+        ]
+
+    def run(self):
+        config = load_config(self.config_path)
+        root_to = lambda p: os.path.join(config['data_root'], p)
+        name = root_to(config['gen']['redirect'])
+
+        with bsearch.BinarySearchFile(name, encoding='utf-8') as f:
+            f.pickle_index(root_to(config['gen']['redirect_index']))
+
+        name = root_to(config['gen']['page_direct'])
+        with bsearch.BinarySearchFile(name, encoding='utf-8') as f:
+            f.pickle_index(root_to(config['gen']['page_direct_index']))
+
+
 class ResolveRedirects(luigi.Task):
     config_path = luigi.Parameter()
 
     def requires(self):
         tasks = [
-            SortPageTable(config_path=self.config_path),
-            SortRedirectTable(config_path=self.config_path),
-            ExtractRedirectColumns(config_path=self.config_path),
+            IndexForResolveRedirects(config_path=self.config_path),
+            ExtractRedirectColumns(config_path=self.config_path)
         ]
         return tasks
 
@@ -233,5 +263,5 @@ class ResolvePagelinks(luigi.Task):
 
 
 if __name__ == '__main__':
-    luigi.build([ExtractPageColumns(config_path='config/desktop-new.yaml')],
+    luigi.build([ResolveRedirects(config_path='config/desktop-new.yaml')],
                 local_scheduler=True)

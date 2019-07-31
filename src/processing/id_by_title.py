@@ -72,48 +72,52 @@ def extract_redirect_columns(config):
 
 
 def resolve_redirects(config):
-    root = config['data_root']
+    root_to = lambda p: os.path.join(config['data_root'], p)
 
     # Redirects to resolve
-    page_redirect_path = os.path.join(root, config['gen']['page_redirect'])
+    page_redirect_path = root_to(config['gen']['page_redirect'])
 
     # `redirect` table providing ID -> Title lookup
-    redirect_path = os.path.join(root, config['gen']['redirect'])
+    redirect_path = root_to(config['gen']['redirect'])
+    redirect_index_path = root_to(config['gen']['redirect_index'])
 
     # `page` table giving Title -> true ID lookup
-    page_path = os.path.join(root, config['gen']['page_direct'])
+    page_path = root_to(config['gen']['page_direct'])
+    page_index_path = root_to(config['gen']['page_direct_index'])
 
     # Output file of resolved redirects
-    resolved_path = os.path.join(root, config['gen']['page_redirect_resolved'])
+    resolved_path = root_to(config['gen']['page_redirect_resolved'])
 
     chunk_size = 2**20  # uses 1MB chunks
 
-    with atomic_write(resolved_path, mode='wb') as out, \
-         BinarySearchFile(redirect_path) as redirect, \
-         BinarySearchFile(page_path) as page, \
-         open(page_redirect_path, 'rb') as rpage:
+    with atomic_write(resolved_path, encoding='utf-8') as out, \
+         BinarySearchFile(redirect_path, index=redirect_index_path) as rd, \
+         BinarySearchFile(page_path, index=page_index_path) as page, \
+         open(page_redirect_path, encoding='utf-8') as rpage:
 
         pbar = tqdm(desc='Resolving redirects')
 
         ch = rpage.readlines(chunk_size)
         while ch:
             # Gets [from_title, from_id] for each line and sorts on from_id
-            idx = [line.rfind(b',') for line in ch]
+            idx = [line.rfind(',') for line in ch]
             ch = [[ch[i][:v], ch[i][v + 1:-1]] for i, v in enumerate(idx)]
             ch.sort(key=lambda x: x[1])
 
             # Searches the redirect table for to_titles
-            to_titles, _ = redirect.search_many([x[1] for x in ch])
+            to_titles, _ = rd.search_many([x[1] for x in ch])
             [ch[i].append(to_titles[i][0]) for i in range(len(ch))]
 
             # Searches the direct pages table for their ID
             to_ids = [page.search(t[2]) if t[2] else (False, -1) for t in ch]
+            to_write = []
             for i, to_id in enumerate(to_ids):
                 if to_id[0]:
-                    out.write(ch[i][0] + b',' + to_id[0] + b'\n')
-
-            ch = rpage.readlines(chunk_size)
+                    to_write.append(ch[i][0] + ',' + to_id[0] + '\n')
+            out.writelines(to_write)
+            print(len(to_write) / len(ch))
             pbar.update(len(ch))
+            ch = rpage.readlines(chunk_size)
 
 
 def merge_page_tables(config):

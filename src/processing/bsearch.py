@@ -1,33 +1,19 @@
+import pickle
+
 from tqdm import tqdm
 
 
 class BinarySearchFile:
-    def __init__(self,
-                 file_name,
-                 fixed_width=False,
-                 index=None,
-                 n_lines=None,
-                 line_len=None,
-                 key_len=None):
+    def __init__(self, file_name, index=None, mode='r', encoding=None):
         self.file_name = file_name
-        self.f = open(file_name, 'rb')
-
-        if fixed_width:
-            if not (n_lines and line_len and key_len):
-                raise ValueError('If fixed_width is True, n_lines, line_len,'
-                                 'and key_len must be provided.')
-            self.n_lines = n_lines
-            self.line_len = line_len
-            self.key_len = key_len
-            self.get_line = self._fixed_get
+        self.f = open(file_name, mode=mode, encoding=encoding)
+        if index is None:
+            self.index = self._create_byte_index()
+        elif isinstance(index, str):
+            self.index = self._unpickle_index(index)
         else:
-            if index is None:
-                self.index = self._create_byte_index()
-            else:
-                self.index = index
-            self.n_lines = len(self.index)
-            self.get_line = self._index_get
-            
+            self.index = index
+        self.n_lines = len(self.index)
 
     def __enter__(self):
         return self
@@ -36,7 +22,7 @@ class BinarySearchFile:
         self.f.close()
 
     def __getitem__(self, line_num):
-        return self.get_line(line_num)
+        return self.get_line_key_value(line_num)
 
     def _create_byte_index(self):
         locs = [0]
@@ -45,23 +31,27 @@ class BinarySearchFile:
                 locs.append(f.tell())
         return locs[:-1]
 
-    def _index_get(self, line_num):
+    def _unpickle_index(self, filepath):
+        with open(filepath, 'rb') as f:
+            return pickle.load(f)
+
+    def pickle_index(self, filepath):
+        with open(filepath, 'wb') as f:
+            pickle.dump(self.index, f)
+
+    def get_line_key_value(self, line_num):
         self.f.seek(self.index[line_num])
         line = self.f.readline()
-        i = line.rfind(b',')
+        # TODO: Write a proper key-value pair tool
+        i = line.rfind(',')
         return line[:i], line[i + 1:-1]
-
-    def _fixed_get(self, line_num):
-        self.f.seek(self.line_len * line_num)
-        line = self.f.readline()
-        return line[:self.key_len], line[self.key_len:]
 
     def _binary_search(self, key, low, high):
         if low > high:
             return False, -1
 
         middle = (low + high) // 2
-        result, value = self.get_line(middle)
+        result, value = self.get_line_key_value(middle)
 
         if result == key:
             return value, middle
@@ -79,7 +69,7 @@ class BinarySearchFile:
             low = 0
         if high is None:
             high = self.n_lines - 1
-        
+
         results = [(False, -1)] * len(keys)
 
         # Finds an upper bound
@@ -89,7 +79,7 @@ class BinarySearchFile:
             if i > -1:
                 high = i
                 break
-        
+
         for k in range(j):
             value, i = self._binary_search(keys[k], low, high)
             results[k] = (value, i)
