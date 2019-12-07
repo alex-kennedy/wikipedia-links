@@ -3,40 +3,38 @@ import os
 import re
 import shutil
 import subprocess
+from os.path import join as pjoin
 
 from tqdm import tqdm
+
+from constants import Dat
 
 tqdm.monitor_interval = 0
 
 
-def download_table(config, table):
+def download_table(root, table):
     """Downloads compressed SQL dump.
 
     Args:
-        config (dict): project config dictionary
-        table (str): name of wiki table
+        root (str): Folder to download to.
+        table (str): Name of wiki table. 
     """
-    folder = os.path.join(config['data_root'], table)
-    file_name = '-'.join(
-        ['enwiki', str(config['data_date']), table + '.sql.gz'])
-    file_path = os.path.join(folder, file_name)
+    name = '-'.join(['enwiki', Dat.DATE, table + '.sql.gz'])
+    file_path = pjoin(root, name)
+    url = pjoin(Dat.REMOTE, Dat.DATE, name)
 
-    url = os.path.join(config['data_remote'], config['data_date'], file_name)
-
-    # Make data folder
-    if not os.path.isdir(folder):
-        os.mkdir(folder)
+    # Makes data folder
+    if not os.path.exists(root):
+        os.makedirs(root)
 
     # Downloads file
     subprocess.call(['wget', '-O', file_path, url])
 
 
-def unzip_table(config, table):
+def unzip_table(root, table):
     """Unzips gz file to sql."""
-    folder = os.path.join(config['data_root'], table)
-    bits = ['enwiki', str(config['data_date']), table + '.sql.gz']
-    file_name = '-'.join(bits)
-    file_path = os.path.join(folder, file_name)
+    name = '-'.join(['enwiki', Dat.DATE, table + '.sql.gz'])
+    file_path = os.path.join(root, name)
 
     with gzip.open(file_path, 'rb') as f_in:
         with open(file_path[:-3], 'wb') as f_out:

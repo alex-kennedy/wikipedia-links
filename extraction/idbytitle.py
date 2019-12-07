@@ -6,8 +6,9 @@ import yaml
 from atomicwrites import atomic_write
 from tqdm import tqdm
 
-from processing.bsearch import BinarySearchFile
-from processing.sort import external_sort, k_way_merge
+from bsearch import BinarySearchFile
+from constants import Cols, Dat
+from extsort import external_sort, k_way_merge
 
 
 def load_config(config_path):
@@ -16,12 +17,11 @@ def load_config(config_path):
         return yaml.load(f)
 
 
-def extract_page_columns(config):
-    root = config['data_root']
-    source = os.path.join(root, 'page', 'page.csv')
-    page = os.path.join(root, config['gen']['page_direct_unsorted'])
-    redirects = os.path.join(root, config['gen']['page_redirect_unsorted'])
-    names = config['tables']['page']['names']
+def extract_page_columns():
+    source = os.path.join(Dat.ROOT_PAGE, 'page.csv')
+    page = Dat.PAGE_DIRECT_UNS
+    redirects = Dat.PAGE_REDIRECT_UNS
+    names = Cols.PAGE
 
     extract_columns = ['page_title', 'page_id']
     chunksize = 10**4  # measured in lines, not bytes
@@ -49,51 +49,39 @@ def extract_page_columns(config):
                 ch[~r].to_csv(fp_page, index=False, header=False, mode='a')
 
 
-def extract_redirect_columns(config):
-    root = config['data_root']
-    source = os.path.join(root, 'redirect', 'redirect.csv')
-    out = os.path.join(root, config['gen']['redirect'])
-    names = config['tables']['redirect']['names']
+def extract_redirect_columns():
     extract_columns = ['rd_from', 'rd_title']
     chunksize = 10**4  # measured in lines, not bytes
 
-    page_it = pd.read_csv(source,
+    page_it = pd.read_csv(os.path.join(Dat.ROOT_REDIRECT, 'redirect.csv'),
                           chunksize=chunksize,
-                          names=names,
+                          names=Cols.REDIRECT,
                           dtype=object,
                           engine='c',
                           encoding='utf-8')
     page_it = tqdm(page_it, unit_scale=chunksize, desc='Extracting Redirect')
-    with atomic_write(out, encoding='utf-8') as f:
+    with atomic_write(Dat.REDIRECT, encoding='utf-8') as f:
         for ch in page_it:
             # Only uses content
             ch = ch[ch['rd_namespace'] == '0']
             ch[extract_columns].to_csv(f, index=False, header=None, mode='a')
 
 
-def resolve_redirects(config):
-    root_to = lambda p: os.path.join(config['data_root'], p)
-
+def resolve_redirects():
     # Redirects to resolve
-    page_redirect_path = root_to(config['gen']['page_redirect'])
 
     # `redirect` table providing ID -> Title lookup
-    redirect_path = root_to(config['gen']['redirect'])
-    redirect_index_path = root_to(config['gen']['redirect_index'])
 
     # `page` table giving Title -> true ID lookup
-    page_path = root_to(config['gen']['page_direct'])
-    page_index_path = root_to(config['gen']['page_direct_index'])
 
     # Output file of resolved redirects
-    resolved_path = root_to(config['gen']['page_redirect_resolved'])
 
     chunk_size = 2**20  # uses 1MB chunks
 
-    with atomic_write(resolved_path, encoding='utf-8') as out, \
-         BinarySearchFile(redirect_path, index=redirect_index_path) as rd, \
-         BinarySearchFile(page_path, index=page_index_path) as page, \
-         open(page_redirect_path, encoding='utf-8') as rpage:
+    with atomic_write(Dat.PAGE_REDIRECT_RESOLVED, encoding='utf-8') as out, \
+         BinarySearchFile(Dat.REDIRECT, index=Dat.REDIRECT_I) as rd, \
+         BinarySearchFile(Dat.PAGE_DIRECT, index=Dat.PAGE_DIRECT_I) as page, \
+         open(Dat.PAGE_REDIRECT, encoding='utf-8') as rpage:
 
         pbar = tqdm(desc='Resolving redirects')
 
@@ -120,21 +108,15 @@ def resolve_redirects(config):
             ch = rpage.readlines(chunk_size)
 
 
-def merge_page_tables(config):
-    root = config['data_root']
-    res_in = os.path.join(root, config['gen']['page_redirect_resolved'])
-    page_direct = os.path.join(root, config['gen']['page_direct'])
-    page_out = os.path.join(root, config['gen']['page'])
-
-    # sort resolved
+def merge_page_tables():
     with TemporaryDirectory() as temp:
         res_sorted = os.path.join(temp, 'res_sorted')
-        external_sort(res_in,
+        external_sort(Dat.PAGE_REDIRECT_RESOLVED,
                       os.path.join(temp, res_sorted),
-                      n_bytes=2**config['free_memory'])
+                      n_bytes=2**Dat.MEMORY)
 
-        files = [page_direct, res_sorted]
-        k_way_merge(files, page_out)
+        files = [Dat.PAGE_DIRECT, res_sorted]
+        k_way_merge(files, Dat.PAGE)
 
 
 if __name__ == '__main__':
@@ -142,4 +124,3 @@ if __name__ == '__main__':
     # root = config['data_root']
     # source = os.path.join(root, config['gen']['page_direct'])
     # out = os.path.join(root, 'gen/page_index.csv')
-    resolve_redirects(config)

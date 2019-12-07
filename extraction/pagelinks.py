@@ -5,26 +5,25 @@ import pandas as pd
 from atomicwrites import atomic_write
 from tqdm import tqdm
 
-from processing.bsearch import BinarySearchFile
+from bsearch import BinarySearchFile
+from constants import Cols, Dat
 
 
-def extract_pagelinks_columns(config):
-    root = config['data_root']
-    source = os.path.join(root, 'pagelinks', 'pagelinks.csv')
-    out = os.path.join(root, config['gen']['pagelinks_unresolved'])
-    names = config['tables']['pagelinks']['names']
-
+def extract_pagelinks_columns():
+    source = os.path.join(Dat.ROOT_PAGELINKS, 'pagelinks.csv')
     extract_columns = ['pl_title', 'pl_from']
     chunksize = 10**6  # Measured in lines, not bytes
 
     page_it = pd.read_csv(source,
                           chunksize=chunksize,
-                          names=names,
+                          names=Cols.PAGELINKS,
                           dtype=object,
                           engine='c',
                           encoding='utf-8')
     page_it = tqdm(page_it, unit_scale=True)
-    with atomic_write(out, overwrite=True, encoding='utf-8') as fp:
+    with atomic_write(Dat.PAGELINKS_UNRESOLVED,
+                      overwrite=True,
+                      encoding='utf-8') as fp:
         for ch in page_it:
             # We will use only links between main namespace pages (i.e. content)
             from_main = ch['pl_from_namespace'] == '0'
@@ -33,13 +32,8 @@ def extract_pagelinks_columns(config):
             ch[extract_columns].to_csv(fp, index=False, header=False, mode='a')
 
 
-def resolve_pagelinks(config):
-    root_to = lambda x: os.path.join(config['data_root'], x)
-    page_path = root_to(config['gen']['page'])
-    pagelinks_path = root_to(config['gen']['pagelinks_unresolved'])
-    out_path = root_to(config['gen']['pagelinks'])
-
-    pagelinks_it = pd.read_csv(pagelinks_path,
+def resolve_pagelinks():
+    pagelinks_it = pd.read_csv(Dat.PAGELINKS_UNRESOLVED,
                                header=None,
                                chunksize=10**6,
                                engine='c',
@@ -47,8 +41,8 @@ def resolve_pagelinks(config):
     pagelinks_it = tqdm(pagelinks_it, desc='Resolving pagelinks')
 
     k_old, v_old = None, None
-    with atomic_write(out_path, mode='w') as out:
-        with BinarySearchFile(page_path) as page:
+    with atomic_write(Dat.PAGELINKS, mode='w') as out:
+        with BinarySearchFile(Dat.PAGE) as page:
             out_csv = csv.writer(out)
             for ch in tqdm(pagelinks_it):
                 rows = []

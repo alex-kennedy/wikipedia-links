@@ -1,6 +1,0 @@
-pandas
-pyyaml
-tqdm
-luigi
-atomicwrites
-requests

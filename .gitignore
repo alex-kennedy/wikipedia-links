@@ -3,3 +3,5 @@ data
 sort-*
 *.txt
 .vscode
+bazel-*
+.DS_Store
